@@ -18,19 +18,15 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.never;
 
-
-@Tag("jednostkowe") // <--- DODAJ TĘ LINIJKĘ@ExtendWith(MockitoExtension.class)
-@ExtendWith(MockitoExtension.class) // <--- TERAZ JEST W NOWEJ LINII I ZADZIAŁA!
+// Użyj tagu "mocki", aby SuiteTylkoMocki.java go wykrył
+@Tag("mocki")
+@ExtendWith(MockitoExtension.class)
 @DisplayName("Zadanie 2: Testy Fasady z użyciem MOCKÓW")
 class ManagerDanychMockTest {
 
-    // @Mock - tworzy atrapę (fałszywe Dao). Ono nie ma w środku prawdziwej mapy!
-    // Udaje, że działa, ale nic nie zapisuje.
     @Mock
     private Dao daoMock;
 
-    // @InjectMocks - tworzy prawdziwego Managera, ale wstrzykuje mu do środka
-    // naszą atrapę (daoMock) zamiast prawdziwego Dao.
     @InjectMocks
     private ManagerDanych manager;
 
@@ -45,50 +41,46 @@ class ManagerDanychMockTest {
         // WHEN
         manager.zarejestrujZawodnika(imie, nazwisko, id);
 
-        // THEN - weryfikacja interakcji
-        // Sprawdzamy: "Hej, atrapą Dao, czy ktoś wywołał na tobie metodę zapiszZgloszenie?"
-        // any(Zawodnik.class) oznacza: "z jakimkolwiek obiektem zawodnika"
+        // THEN
+        // Weryfikacja: czy metoda zapiszZgloszenie została wywołana raz z odpowiednim ID?
         verify(daoMock, times(1)).zapiszZgloszenie(eq(id), any(Zawodnik.class));
     }
 
     @Test
-    @DisplayName("Nie powinien ruszać Dao, gdy dane są błędne")
+    @DisplayName("Nie powinien ruszać Dao, gdy dane są błędne (puste imię)")
     void shouldNotTouchDaoWhenValidationFails() {
-        // GIVEN - błędne imię
-        String imie = ""; 
-        
-        // WHEN - próbujemy (wiemy, że poleci wyjątek, więc łapiemy go w try-catch lub ignorujemy w tym teście)
+        // GIVEN
+        String imie = "";
+
+        // WHEN
         try {
             manager.zarejestrujZawodnika(imie, "Kowalski", 500);
         } catch (IllegalArgumentException e) {
-            // Ignorujemy błąd, bo interesuje nas czy Dao zostało dotknięte
+            // Ignorujemy wyjątek, bo testujemy zachowanie Dao, a nie sam wyjątek
         }
 
         // THEN
-        // Sprawdzamy: "Czy Dao było używane?". Oczekujemy, że NIE (never).
+        // Upewniamy się, że Dao NIE zostało wywołane
         verify(daoMock, never()).zapiszZgloszenie(any(Integer.class), any(Zawodnik.class));
     }
 
     @Test
-    @DisplayName("Symulacja błędu bazy danych")
+    @DisplayName("Symulacja błędu bazy danych (doThrow)")
     void shouldHandleDatabaseError() {
         // GIVEN
-        // Uczymy atrapę: "Jak ktoś zawoła zapiszZgloszenie, to rzuć błędem RuntimeException"
-        // To realizuje wymóg instrukcji: doThrow().when() dla metod void [cite: 8162]
+        // Konfiguracja stuba dla metody void: rzuć wyjątek przy próbie zapisu
         doThrow(new RuntimeException("Błąd połączenia z bazą"))
-            .when(daoMock).zapiszZgloszenie(any(Integer.class), any(Zawodnik.class));
+                .when(daoMock).zapiszZgloszenie(any(Integer.class), any(Zawodnik.class));
 
         // WHEN
-        // Wywołujemy managera. On spróbuje zapisać, Dao rzuci błąd.
-        // Manager nie obsługuje błędów (nie ma try-catch w kodzie), więc błąd powinien wylecieć wyżej.
         try {
             manager.zarejestrujZawodnika("Test", "Testowy", 999);
         } catch (RuntimeException e) {
-            System.out.println("Złapano oczekiwany błąd z atrapy: " + e.getMessage());
+            // Oczekujemy, że błąd poleci wyżej (bo manager go nie łapie)
         }
 
         // THEN
-        // Upewniamy się, że Manager mimo błędu próbował zapisać (czyli doszedł do linijki z dao)
+        // Weryfikujemy, że Manager mimo wszystko spróbował wywołać Dao
         verify(daoMock).zapiszZgloszenie(any(Integer.class), any(Zawodnik.class));
     }
 }
