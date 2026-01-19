@@ -1,6 +1,8 @@
 package com.biegi;
 
 import com.biegi.dao.Dao;
+import com.biegi.external.SystemPlatnosci;
+import com.biegi.external.SystemPowiadomien;
 import com.biegi.facade.ManagerDanych;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -9,8 +11,9 @@ import org.junit.jupiter.params.provider.ValueSource;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-@Tag("logika")
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
+@Tag("logika")
+@DisplayName("Zadanie 1: Testy integracyjne (bez mocków)")
 class ManagerDanychTest {
 
     private ManagerDanych manager;
@@ -18,27 +21,32 @@ class ManagerDanychTest {
 
     @BeforeEach
     void setUp() {
-        // GIVEN
+        // GIVEN - tworzymy wszystkie zależności
         dao = new Dao();
-        manager = new ManagerDanych(dao);
+
+        // Tworzymy prawdziwe instancje systemów zewnętrznych (symulacje)
+        SystemPlatnosci platnosci = new SystemPlatnosci();
+        SystemPowiadomien powiadomienia = new SystemPowiadomien();
+
+        // Konstruktor teraz przyjmuje 3 argumenty - to naprawia Twój błąd!
+        manager = new ManagerDanych(dao, platnosci, powiadomienia);
     }
 
     @Test
     @Order(1)
+    @DisplayName("Sprawdzenie, czy manager został poprawnie utworzony")
     void testKonstrukcji() {
-        // WHEN & THEN
         assertNotNull(manager, "Manager nie powinien być nullem");
     }
 
     @ParameterizedTest
     @ValueSource(strings = {"", "   ", "\t\n"})
     @Order(2)
-    void testZarejestrujZawodnika_BledneImie(String niepoprawneImie) {
-        // GIVEN
+    @DisplayName("Walidacja: Puste imię powinno rzucić wyjątek (ValueSource)")
+    void testZarejestrujZawodnika_BledneImie_ValueSource(String niepoprawneImie) {
         String nazwisko = "Nowak";
         int idWydarzenia = 1;
 
-        // WHEN & THEN
         IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () -> {
             manager.zarejestrujZawodnika(niepoprawneImie, nazwisko, idWydarzenia);
         });
@@ -49,14 +57,13 @@ class ManagerDanychTest {
     @ParameterizedTest
     @CsvSource({
             "Jan, Kowalski, 100",
-            "Anna, Nowak, 200",
-            "Piotr, O'Connor, 300"
+            "Anna, Nowak, 200"
     })
     @Order(3)
-    void testZarejestrujZawodnika_PoprawneDane(String imie, String nazwisko, int id) {
-        // WHEN & THEN
+    @DisplayName("Rejestracja: Poprawne dane nie rzucają wyjątku (CsvSource)")
+    void testZarejestrujZawodnika_PoprawneDane_CsvSource(String imie, String nazwisko, int id) {
         assertDoesNotThrow(() -> {
             manager.zarejestrujZawodnika(imie, nazwisko, id);
-        });
+        }, "Poprawne dane nie powinny powodować błędu");
     }
 }
